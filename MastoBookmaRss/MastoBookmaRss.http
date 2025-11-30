@@ -1,0 +1,6 @@
+@MastoBookmaRss_HostAddress = http://localhost:5159
+
+GET {{MastoBookmaRss_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
