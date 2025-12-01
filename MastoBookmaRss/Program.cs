@@ -12,7 +12,7 @@ builder.Services.AddHttpClient(); // generic HttpClientFactory
 
 var app = builder.Build();
 
-app.MapGet("/", () => Results.Redirect(Environment.GetEnvironmentVariable("REDIRECT_URL") ?? "https://aufmboot.com"));
+app.MapGet("/", () => Results.Redirect(Environment.GetEnvironmentVariable("REDIRECT_URL") ?? "/conf"));
 
 app.MapGet("/conf", () =>
 {
