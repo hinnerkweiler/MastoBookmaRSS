@@ -21,4 +21,8 @@ public class MastodonStatus
 
     [JsonPropertyName("card")]
     public MastodonCard? Card { get; set; }
+    
+    [JsonPropertyName("media_attachments")]
+    public IReadOnlyList<MastodonMediaAttachment>? MediaAttachments { get; init; }
+
 }

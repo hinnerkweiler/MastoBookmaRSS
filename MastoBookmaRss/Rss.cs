@@ -10,6 +10,7 @@ public static class Rss
     public static XDocument Build(IEnumerable<MastodonStatus?> statuses, Uri instanceUri)
     {
         var contentNs = XNamespace.Get("http://purl.org/rss/1.0/modules/content/");
+        var mediaNs = XNamespace.Get("http://search.yahoo.com/mrss/");
 
         var now = DateTimeOffset.UtcNow;
 
@@ -56,6 +57,49 @@ public static class Rss
             contentHtml.Append("</p>");
             contentHtml.Append(status.Content ?? string.Empty);
 
+            // Handle media attachments (images)
+            if (status.MediaAttachments != null)
+            {
+                foreach (var att in status.MediaAttachments)
+                {
+                    // Prefer `Url`, fall back to `PreviewUrl` if available
+                    var attUrl = att?.Url ?? att?.PreviewUrl;
+                    if (string.IsNullOrWhiteSpace(attUrl)) continue;
+
+                    // Detect image-like attachments. Many Mastodon libs use Type == "image".
+                    var isImage = string.Equals(att?.Type, "image", StringComparison.OrdinalIgnoreCase)
+                                  || (att?.Type?.StartsWith("image", StringComparison.OrdinalIgnoreCase) ?? false);
+
+                    if (!isImage) continue;
+
+                    // Guess MIME type if not present on the attachment
+                    var mime = "image/*";
+                    // some models expose a MimeType property; use it if present
+                    var mimeProp = att?.GetType().GetProperty("MimeType")?.GetValue(att) as string;
+                    if (!string.IsNullOrWhiteSpace(mimeProp))
+                    {
+                        mime = mimeProp;
+                    }
+
+                    // Add enclosure for feed readers that support it
+                    item.Add(new XElement("enclosure",
+                        new XAttribute("url", attUrl),
+                        new XAttribute("type", mime),
+                        new XAttribute("length", "0")));
+
+                    // Add Media RSS element for richer clients
+                    item.Add(new XElement(mediaNs + "content",
+                        new XAttribute("url", attUrl),
+                        new XAttribute("medium", "image"),
+                        new XAttribute("type", mime)));
+
+                    // Append inline image to the HTML content so HTML-capable readers render it
+                    contentHtml.Append("<p><img src=\"");
+                    contentHtml.Append(HtmlEncoder.Default.Encode(attUrl));
+                    contentHtml.Append("\" alt=\"attached image\" /></p>");
+                }
+            }
+
             item.Add(new XElement(contentNs + "encoded", new XCData(contentHtml.ToString())));
 
             channel.Add(item);
@@ -66,6 +110,7 @@ public static class Rss
             new XElement("rss",
                 new XAttribute("version", "2.0"),
                 new XAttribute(XNamespace.Xmlns + "content", contentNs),
+                new XAttribute(XNamespace.Xmlns + "media", mediaNs),
                 channel
             )
         );
